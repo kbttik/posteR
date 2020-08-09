@@ -1,0 +1,5 @@
+Name: Post to Graffiti
+Description: Post html file, which made by opened Rmd file
+Binding: post_html
+Interactive: true
+
