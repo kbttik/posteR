@@ -29,15 +29,19 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
     Sys.setenv(TARGET_API = ask_api())
   }
 
+  # get title from .Rmd
+  # "tools/test_post_to_api.Rmd" to test_post_to_api
   title <-
     Rmd_file %>%
     stringr::str_split("/", simplify = T) %>%
     stringr::str_subset("\\.Rmd") %>%
     stringr::str_replace("\\.Rmd", "")
 
+  # get tag
+  # USER, git repository name
   tag <- c(
     Sys.getenv("USER"),
-    get_git_repo()
+    get_git_repository()
   ) %>%
     .[. != ""] %>%
     paste(collapse = ",")
@@ -46,7 +50,6 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
     Rmd_file %>%
     stringr::str_replace("\\.Rmd", "\\.html")
 
-
   post_param <- rlang::exec(
     post_interactively,
     title = title,
@@ -54,7 +57,8 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
     html_path = html_path
   )
 
-  print(post_param)
+  result <- post_html(post_param$title, post_param$tag, post_param$html_path)
+  print(result)
 }
 
 
@@ -81,11 +85,19 @@ post_html_from_Rmd_addin <- function(){
 }
 
 
-#' uploadを行う
+#' APIへPOSTを行う
 #'
 #' エンコードもここでする
+#' @param title character タイトル
+#' @param tag character タグ
+#' @param html_path character htmlファイルへのパス
+#'
+#' @return character POSTした結果
+#'
+#' @export
+#' @examples
+#' post_html("テストPOST", "test, Post,テスト ", "tools/test_post_to_api.html")
 post_html <- function(title, tag, html_path){
-  # POST
   result <-
     httr::POST(url = Sys.getenv("TARGET_API"),
                body = httr::upload_file(path = html_path, type = "text/html"),
@@ -93,116 +105,17 @@ post_html <- function(title, tag, html_path){
                                  tags = tag %>% encoding_tag()),
                encode = "raw")
 
-#  if (!is.null(session)) {
-#    shiny::stopApp()
-#  }
-
   return(result)
 }
-
-
-#' タグのエンコード
-#'
-#' headerにタグを含ませる場合、utf-8で送れないので、base64でエンコードする
-#' @param x character タグ sample_tag,テスト,test_tag または c("sample_tag","テスト","test_tag")
-#'
-#' @return character "sample_tag,テスト,test_tag"をbase64でエンコードした結果(サンプルは"c2FtcGxlX3RhZyzjg4bjgrnjg4gsdGVzdF90YWc=")
-#'
-#' @export
-#' @examples
-#' encoding_tag("sample_tag,テスト,test_tag")
-#' encoding_tag(c("sample_ t a  g ","テスト "," test_tag"))
-encoding_tag <- function(x){
-  if (!is.character(x)){
-    abort("Please change Tag to character.")
-  }
-
-  # make 1 string and remove space
-  if (length(x) > 1){
-    x <- paste(x, collapse = ",")
-    x <- str_replace_all(x, "( |　)", "")
-  }
-
-  # encoding to base64
-  x <- jsonlite::base64_enc(x)
-  x <- str_replace_all(x, "\\n", "")
-
-  return(x)
-}
-
-
-#' タイトルのエンコード
-#'
-#' headerにタイトルを含ませる場合、utf-8で送れないので、base64でエンコードする
-#' @param x character タイトル
-#'
-#' @return character タイトルをbase64でエンコードした結果
-#'
-#' @export
-#' @examples
-#' encoding_title("test_title")
-#' encoding_title("サンプルタイトル")
-encoding_title <- function(x){
-  if (!is.character(x)){
-    abort("Please change Tag to character.")
-  }
-
-  # encoding to base64
-  x <- jsonlite::base64_enc(x)
-  x <- str_replace_all(x, "\\n", "")
-
-  return(x)
-}
-
-
-#'
-#'
-#'
-#'
-get_git_repo <-function(path = "."){
-  repo_name <-
-    system("git remote -v", intern = TRUE)[1] %>%
-    stringr::str_split("(/| )", simplify = TRUE) %>%
-    stringr::str_subset("\\.git") %>%
-    stringr::str_replace("\\.git", "")
-
-  return(repo_name)
-}
-
-
-#'
-#'
-#'
-#'
-#'
-ask_rstudio_prompt <- function(title, message, default = NULL) {
-  if (!interactive()) {
-    abort("Please set up environmental variables before running non-interactive session.")
-  }
-
-  if (rstudioapi::isAvailable()) {
-    return(rstudioapi::showPrompt(title, message, default))
-  }
-
-  # Fallback to the readline
-  readline(message)
-}
-
-ask_api <- function() ask_rstudio_prompt(title = "POST_API_SERVER", message = "URL of API you want to post")
 
 
 #' POST時のshiny起動
 #'
 #' headerに
 #'
-#'
-#'
-#'
-#'
 post_interactively <- function(title, tag, html_path) {
 
   # This will be assigned in Shiny's server function
-  #post_param <- NULL
 
   # Shiny UI -----------------------------------------------------------
   ui <- make_addin_ui(
@@ -221,7 +134,6 @@ post_interactively <- function(title, tag, html_path) {
         post_param <- list(title = input$title,
                             tag = input$tag,
                             html_path = input$path)
-        #print(post_param)
         shiny::stopApp(returnValue = post_param)
     })
 
@@ -230,7 +142,6 @@ post_interactively <- function(title, tag, html_path) {
   viewer <- shiny::dialogViewer("Preview", width = 1200, height = 800)
   shiny::runGadget(ui, server, viewer = viewer)
 
-  #post_param
 }
 
 
@@ -266,6 +177,7 @@ make_addin_ui <- function(title, tag, html_path) {
     title_bar,
     miniUI::miniContentPanel(
       shiny::fluidRow(shiny::column(title_input, width = 6), shiny::column(parent_input, width = 6)),
+      shiny::fluidRow(shiny::column(path_input, width = 12)),
       shiny::fluidRow(shiny::column(tag_input, width = 12)),
       shiny::hr(),
       shiny::div(preview_html)
