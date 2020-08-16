@@ -1,5 +1,9 @@
-Name: Post to Graffiti
+Name: Post to API from Rmd
 Description: Post html file, which made by opened Rmd file
-Binding: post_html
-Interactive: true
+Binding: post_html_from_Rmd_addin
+Interactive: false
 
+Name: Post to API
+Description: Post html file.
+Binding: post_html_addin
+Interactive: false
