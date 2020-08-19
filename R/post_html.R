@@ -133,7 +133,7 @@ post_interactively <- function(title, tag, html_path) {
         print("put confirm")
         post_param <- list(title = input$title,
                             tag = input$tag,
-                            html_path = input$path)
+                            html_path = html_path)
         shiny::stopApp(returnValue = post_param)
     })
 
@@ -167,17 +167,17 @@ make_addin_ui <- function(title, tag, html_path) {
   tag_input <- shiny::textInput(inputId = "tag", label = "Tag", value = tag)
 
   # html_path
-  path_input <- shiny::textInput(inputId = "path", label = "Path", value = html_path)
+  #path_input <- shiny::textInput(inputId = "path", label = "Path", value = html_path)
 
   # Preview
-  html_text_for_preview <- readr::read_file("/Users/kubotataiki/github/report-generator-with-react/report/from_report/test_from.html")
+  html_text_for_preview <- readr::read_file(html_path)
   preview_html <- shiny::HTML(html_text_for_preview)
 
   miniUI::miniPage(
     title_bar,
     miniUI::miniContentPanel(
       shiny::fluidRow(shiny::column(title_input, width = 6), shiny::column(parent_input, width = 6)),
-      shiny::fluidRow(shiny::column(path_input, width = 12)),
+      #shiny::fluidRow(shiny::column(path_input, width = 12)),
       shiny::fluidRow(shiny::column(tag_input, width = 12)),
       shiny::hr(),
       shiny::div(preview_html)
