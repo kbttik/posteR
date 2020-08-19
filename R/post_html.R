@@ -46,9 +46,15 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
     .[. != ""] %>%
     paste(collapse = ",")
 
+  # get html path    
   html_path <-
     Rmd_file %>%
-    stringr::str_replace("\\.Rmd", "\\.html")
+    get_html_path_from_Rmd()
+
+  if (is.null(html_path)) {
+    abort(glue("Please knit {basename(Rmd_file)} !"))
+  }
+  
 
   post_param <- rlang::exec(
     post_interactively,

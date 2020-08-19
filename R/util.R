@@ -101,3 +101,21 @@ get_git_repository <-function(path = "."){
 
   return(repo_name)
 }
+
+#' htmlまたはnotebookにknitしているか確認
+#' 
+#' Rmdファイルのタイトルの.html .nb.htmlが存在しているかチェック
+#' @param Rmd_file character Rmdへのパス
+#' @return character htmlへのパス、なければNULL
+get_html_path_from_Rmd <- function(Rmd_file){
+  path_html <- Rmd_file %>% stringr::str_replace("\\.Rmd", "\\.html")
+  path_notebook <- Rmd_file %>% stringr::str_replace("\\.Rmd", "\\.nb\\.html")
+  
+  if (file.exists(path_html))
+    return(path_html)
+    
+  if (file.exists(path_notebook))
+    return(path_notebook)
+  
+  return(NULL)
+}
