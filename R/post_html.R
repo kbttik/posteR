@@ -37,8 +37,13 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
     stringr::str_subset("\\.Rmd") %>%
     stringr::str_replace("\\.Rmd", "")
 
+  # get author
+  # USER
+  author <- 
+    Sys.getenv("USER")
+  
   # get tag
-  # USER, git repository name
+  # git repository name
   tag <- c(
     Sys.getenv("USER"),
     get_git_repository()
@@ -54,16 +59,18 @@ post_html_from_Rmd <- function(Rmd_file, interactive = NULL){
   if (is.null(html_path)) {
     abort(glue("Please knit {basename(Rmd_file)} !"))
   }
-  
 
   post_param <- rlang::exec(
     post_interactively,
     title = title,
+    author = author,
     tag = tag,
     html_path = html_path
   )
-
-  result <- post_html(post_param$title, post_param$tag, post_param$html_path)
+  
+  print(html_path)
+  print(file.exists(html_path))
+  result <- post_html(post_param$title, post_param$author, post_param$tag, html_path)
   print(result)
 }
 
@@ -103,11 +110,12 @@ post_html_from_Rmd_addin <- function(){
 #' @export
 #' @examples
 #' post_html("テストPOST", "test, Post,テスト ", "tools/test_post_to_api.html")
-post_html <- function(title, tag, html_path){
+post_html <- function(title, author, tag, html_path){
   result <-
     httr::POST(url = Sys.getenv("TARGET_API"),
                body = httr::upload_file(path = html_path, type = "text/html"),
                httr::add_headers(title = title %>% encoding_title(),
+                                 author = author %>% encoding_title(),
                                  tags = tag %>% encoding_tag()),
                encode = "raw")
 
@@ -119,13 +127,14 @@ post_html <- function(title, tag, html_path){
 #'
 #' headerに
 #'
-post_interactively <- function(title, tag, html_path) {
+post_interactively <- function(title, author, tag, html_path) {
 
   # This will be assigned in Shiny's server function
 
   # Shiny UI -----------------------------------------------------------
   ui <- make_addin_ui(
     title = title,
+    author = author,
     tag = tag,
     html_path = html_path
   )
@@ -138,8 +147,9 @@ post_interactively <- function(title, tag, html_path) {
     shiny::observeEvent(input$confirm, {
         print("put confirm")
         post_param <- list(title = input$title,
-                            tag = input$tag,
-                            html_path = html_path)
+                           author = input$author,
+                           tag = input$tag,
+                           html_path = html_path)
         shiny::stopApp(returnValue = post_param)
     })
 
@@ -158,7 +168,7 @@ post_interactively <- function(title, tag, html_path) {
 #'
 #'
 #'
-make_addin_ui <- function(title, tag, html_path) {
+make_addin_ui <- function(title, author, tag, html_path) {
   # title bar
   title_bar_button <- miniUI::miniTitleBarButton("confirm", "Publish", primary = TRUE)
   title_bar <- miniUI::gadgetTitleBar("Preview", right = title_bar_button)
@@ -166,8 +176,8 @@ make_addin_ui <- function(title, tag, html_path) {
   # title
   title_input <- shiny::textInput(inputId = "title", label = "Title", value = title)
 
-  # parent report
-  parent_input <- shiny::textInput(inputId = "parent", label = "Parent")
+  # author
+  author_input <- shiny::textInput(inputId = "author", label = "Author", value = author)
 
   # tag
   tag_input <- shiny::textInput(inputId = "tag", label = "Tag", value = tag)
@@ -182,7 +192,7 @@ make_addin_ui <- function(title, tag, html_path) {
   miniUI::miniPage(
     title_bar,
     miniUI::miniContentPanel(
-      shiny::fluidRow(shiny::column(title_input, width = 6), shiny::column(parent_input, width = 6)),
+      shiny::fluidRow(shiny::column(title_input, width = 6), shiny::column(author_input, width = 6)),
       #shiny::fluidRow(shiny::column(path_input, width = 12)),
       shiny::fluidRow(shiny::column(tag_input, width = 12)),
       shiny::hr(),
